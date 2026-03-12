@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # common/git-tag.sh — Git Tag 共通
 
-source "$(dirname "$0")/error-handler.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/error-handler.sh"
 
 # Branch → tag prefix 對應
 # develop  → ci-dev-{BUILD_NUMBER}

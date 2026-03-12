@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # common/archive-base.sh — release/backup 搬移邏輯共通
 
-source "$(dirname "$0")/error-handler.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/error-handler.sh"
 
 ARTIFACTS_ROOT="${ARTIFACTS_ROOT:-/var/jenkins_home/artifacts}"
 MAX_BACKUPS=10
