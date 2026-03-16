@@ -21,21 +21,16 @@ cd "${WORKSPACE}"
 
 # ── 從 package.json 讀取應用資訊 ─────────────────────────────────────────────
 # 使用 python3 確保在 nvm 切換前也能可靠解析
-read_package_info() {
-    python3 - package.json <<'EOF'
-import json, re, sys
-with open(sys.argv[1]) as f:
-    pkg = json.load(f)
-name    = pkg.get("name", "unknown-app")
-version = pkg.get("version", "0.0.1")
-raw_node = pkg.get("engines", {}).get("node", "")
-m = re.search(r"\d+", raw_node)
-node_ver = m.group() if m else "20"
-print(f"{name}\n{version}\n{node_ver}")
-EOF
-}
-
-IFS=$'\n' read -r APP_NAME APP_VERSION NODE_VERSION <<< "$(read_package_info)"
+# 分三次呼叫避免 IFS read 只讀單行的問題（`read` 每次只讀到第一個換行符）
+APP_NAME="$(python3 -c "import json; print(json.load(open('package.json')).get('name','unknown-app'))")"
+APP_VERSION="$(python3 -c "import json; print(json.load(open('package.json')).get('version','0.0.1'))")"
+NODE_VERSION="$(python3 -c "
+import json, re
+pkg = json.load(open('package.json'))
+raw = pkg.get('engines', {}).get('node', '')
+m = re.search(r'\d+', raw)
+print(m.group() if m else '20')
+")"
 
 # 去除版本號中可能含有的 -SNAPSHOT / -RC 後綴（保持與 Java 命名規則一致）
 BASE_VERSION="${APP_VERSION%-SNAPSHOT}"
@@ -77,11 +72,14 @@ echo "[node-archive] artifact: ${ARTIFACT_NAME}"
 #   logs/          → 執行期 log，不屬於部署產出物
 #   *.DS_Store     → macOS 系統檔
 echo "[node-archive] Creating zip..."
+# zip exclude 需同時帶前綴與不帶前綴兩種 pattern：
+#   帶前綴（*/.../*）：匹配子目錄層的路徑
+#   不帶前綴（.../*）：匹配 archive root 層的路徑（zip 路徑不含前導 ./）
 zip -r "${ARTIFACT_PATH}" . \
-    --exclude "*/node_modules/*" \
-    --exclude "*/.git/*" \
-    --exclude "*/.pipeline/*" \
-    --exclude "*/logs/*" \
+    --exclude "node_modules/*"   --exclude "*/node_modules/*" \
+    --exclude ".git/*"           --exclude "*/.git/*" \
+    --exclude ".pipeline/*"      --exclude "*/.pipeline/*" \
+    --exclude "logs/*"           --exclude "*/logs/*" \
     --exclude "*.DS_Store"
 
 echo "[node-archive] zip created: ${ARTIFACT_PATH}"
