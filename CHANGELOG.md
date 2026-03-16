@@ -7,6 +7,16 @@
 
 ---
 
+## [1.1.0] - 2026-03-16
+
+### Added
+- `java/java-env.sh`：依 pom.xml `<java.version>` 或 build.gradle `sourceCompatibility` 自動切換 `JAVA_HOME`，支援 JDK 8 / 11 / 17 / 21
+
+### Changed
+- `ci.sh`：Java CI 流程執行前加入 `source java-env.sh`，確保使用正確 JDK 版本建置
+
+---
+
 ## [1.0.0] - 2026-03-12
 
 ### Added
@@ -36,5 +46,6 @@
 ### Docs
 - 新增 README：使用方式、目錄結構、語言偵測邏輯、版本管理說明
 
-[Unreleased]: https://github.com/ShibaDev2026/jenkins-pipeline/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/ShibaDev2026/jenkins-pipeline/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/ShibaDev2026/jenkins-pipeline/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/ShibaDev2026/jenkins-pipeline/releases/tag/v1.0.0
