@@ -1,4 +1,4 @@
-# jenkins-pipeline
+# jenkins-pipeline-scripts
 
 Jenkins Shared Library，統一管理所有專案的 CI/CD 流程。
 
@@ -11,7 +11,7 @@ Jenkins Shared Library，統一管理所有專案的 CI/CD 流程。
 在專案根目錄的 `Jenkinsfile` 加入以下內容即可：
 
 ```groovy
-@Library('jenkins-pipeline@v1.0.0') _
+@Library('jenkins-pipeline@v1.2.1') _
 
 ciPipeline(
     githubCredentials: 'github-credentials'
@@ -23,12 +23,13 @@ ciPipeline(
 ## 目錄結構
 
 ```
-jenkins-pipeline/
+jenkins-pipeline-scripts/
 ├── vars/
 │   └── ciPipeline.groovy          # Shared Library 入口
 └── resources/
     ├── scripts/
-    │   ├── ci.sh                  # CI 入口（含語言自動偵測）
+    │   ├── detect.sh              # 語言 / Build Tool 自動偵測
+    │   ├── ci.sh                  # CI 入口
     │   ├── cd.sh                  # CD 入口（開關控制）
     │   ├── common/
     │   │   ├── error-handler.sh   # 共用錯誤處理（trap ERR）
@@ -36,35 +37,54 @@ jenkins-pipeline/
     │   │   ├── git-tag.sh         # Git Tag 共通
     │   │   └── archive-base.sh    # release / backup 搬移共通
     │   ├── java/
+    │   │   ├── java-env.sh        # JDK 多版本自動切換
     │   │   ├── java-build.sh      # Maven / Gradle 建置
-    │   │   ├── java-test.sh       # 單元測試（依 branch 決定範圍）
+    │   │   ├── java-test.sh       # 測試（依 branch 決定範圍）
     │   │   └── java-archive.sh    # JAR 版本管理
     │   ├── node/
-    │   │   ├── node-build.sh      # TODO
-    │   │   ├── node-test.sh       # TODO
-    │   │   └── node-archive.sh    # TODO
+    │   │   ├── node-build.sh      # Node.js 建置（nvm 版本切換）
+    │   │   ├── node-test.sh       # Node.js 測試
+    │   │   └── node-archive.sh    # ZIP 版本管理
     │   └── python/
-    │       ├── python-build.sh    # TODO
-    │       ├── python-test.sh     # TODO
-    │       └── python-archive.sh  # TODO
+    │       ├── python-build.sh    # ⏳ TODO
+    │       ├── python-test.sh     # ⏳ TODO
+    │       └── python-archive.sh  # ⏳ TODO
     └── dockerfiles/
         ├── Dockerfile-java        # Java 預設容器 image
-        ├── Dockerfile-node        # TODO
-        └── Dockerfile-python      # TODO
+        ├── Dockerfile-node        # ⏳ TODO
+        └── Dockerfile-python      # ⏳ TODO
 ```
 
 ---
 
 ## 語言自動偵測
 
-`ci.sh` 依專案根目錄的特定檔案自動判斷語言與建置工具：
+`detect.sh` 依專案根目錄的特定檔案自動判斷語言與建置工具：
 
 | 偵測條件 | Language | Build Tool |
-|----------|----------|-----------|
+|----------|----------|------------|
 | `pom.xml` | java | maven |
 | `build.gradle` | java | gradle |
 | `package.json` | node | npm / yarn |
 | `requirements.txt` / `pyproject.toml` | python | pip |
+
+---
+
+## Pipeline Stages
+
+```
+Checkout → Load Scripts → Detect → Build → Test → Archive → Docker Build
+```
+
+| Stage | 說明 |
+|-------|------|
+| Checkout | git checkout 專案程式碼 |
+| Load Scripts | 透過 `libraryResource()` 將 scripts 寫入 Agent `.pipeline/` |
+| Detect | 偵測語言、Build Tool、appName |
+| Build | 依語言執行建置 |
+| Test | 依 branch 決定測試範圍 |
+| Archive | 產出物命名、搬移至 release / backup |
+| Docker Build | 建置 Docker image（Harbor Push / Deploy 由 `CD_ENABLED` 控制）|
 
 ---
 
@@ -102,6 +122,12 @@ jenkins-pipeline/
 | main | `claude-project-main-v0.0.1-RC-42.jar` |
 | prod | `claude-project-prod-v0.0.1.jar` |
 
+| 語言 | 格式 | 範例 |
+|------|------|------|
+| Java | `.jar` | `claude-project-dev-v0.0.1-SNAPSHOT-42.jar` |
+| Node | `.zip` | `claude-project-frontend-dev-v0.0.1-SNAPSHOT-42.zip` |
+| Python | `.zip` | `claude-project-service-dev-v0.0.1-SNAPSHOT-42.zip` |
+
 產出物存放於 Jenkins Controller 的 `/var/jenkins_home/artifacts/{appName}/release/`，舊版自動移至 `backup/`（最多保留 10 份）。
 
 ---
@@ -122,9 +148,9 @@ jenkins-pipeline/
 `docker.sh` 依以下順序尋找 Dockerfile，優先使用專案自訂版本：
 
 ```
-1. 專案根目錄 Dockerfile-{lang}   ← 自訂，優先使用
-2. 專案根目錄 Dockerfile           ← 舊版相容
-3. jenkins-pipeline 預設           ← 無自訂時使用
+1. 專案根目錄 Dockerfile-{lang}        ← 自訂，優先使用
+2. 專案根目錄 Dockerfile               ← 舊版相容
+3. jenkins-pipeline-scripts 預設       ← 無自訂時使用
 ```
 
 ---
@@ -135,15 +161,22 @@ jenkins-pipeline/
 
 ```bash
 # 發布新版本
-git tag v1.1.0
-git push origin v1.1.0
+git tag v1.3.0 -m "v1.3.0 - 說明"
+git push origin v1.3.0
 ```
 
 各專案在 Jenkinsfile 指定版本：
 
 ```groovy
-@Library('jenkins-pipeline@v1.1.0') _
+@Library('jenkins-pipeline@v1.3.0') _
 ```
+
+| 版本 | 說明 |
+|------|------|
+| v1.0.0 | 初始版本（Java CI 全流程）|
+| v1.1.0 | 新增 java-env.sh（JDK 多版本自動切換）|
+| v1.2.0 | Node.js CI scripts 實作（build / test / archive）|
+| v1.2.1 | fix node-archive.sh parsing and zip exclude |
 
 ---
 
