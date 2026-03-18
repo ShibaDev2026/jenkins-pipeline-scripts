@@ -7,6 +7,20 @@
 
 ---
 
+## [1.2.2] - 2026-03-18
+
+### Fixed
+- `dockerfiles/Dockerfile-java`：base image 從 `eclipse-temurin:jre-alpine` 改為 `eclipse-temurin:jre-jammy`（Ubuntu 22.04），修復在 Apple Silicon（ARM64/M1）上 `no matching manifest for linux/arm64/v8` 導致 Docker Build 失敗的問題
+
+---
+
+## [1.2.1] - 2026-03-17
+
+### Fixed
+- `node/node-archive.sh`：修正 `package.json` 解析邏輯與 zip 排除路徑模式（`-x` pattern 格式錯誤）
+
+---
+
 ## [1.2.0] - 2026-03-16
 
 ### Added
@@ -55,7 +69,9 @@
 ### Docs
 - 新增 README：使用方式、目錄結構、語言偵測邏輯、版本管理說明
 
-[Unreleased]: https://github.com/ShibaDev2026/jenkins-pipeline/compare/v1.2.0...HEAD
-[1.2.0]: https://github.com/ShibaDev2026/jenkins-pipeline/compare/v1.1.0...v1.2.0
-[1.1.0]: https://github.com/ShibaDev2026/jenkins-pipeline/compare/v1.0.0...v1.1.0
-[1.0.0]: https://github.com/ShibaDev2026/jenkins-pipeline/releases/tag/v1.0.0
+[Unreleased]: https://github.com/Shiba-Jenkins-Groups/jenkins-pipeline-scripts/compare/v1.2.2...HEAD
+[1.2.2]: https://github.com/Shiba-Jenkins-Groups/jenkins-pipeline-scripts/compare/v1.2.1...v1.2.2
+[1.2.1]: https://github.com/Shiba-Jenkins-Groups/jenkins-pipeline-scripts/compare/v1.2.0...v1.2.1
+[1.2.0]: https://github.com/Shiba-Jenkins-Groups/jenkins-pipeline-scripts/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/Shiba-Jenkins-Groups/jenkins-pipeline-scripts/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/Shiba-Jenkins-Groups/jenkins-pipeline-scripts/releases/tag/v1.0.0

@@ -1,5 +1,6 @@
 ARG RUNTIME_VERSION=17
-FROM eclipse-temurin:${RUNTIME_VERSION}-jre-alpine
+# jammy（Ubuntu 22.04）支援 amd64 + arm64，alpine 不含 arm64 manifest（M1 不相容）
+FROM eclipse-temurin:${RUNTIME_VERSION}-jre-jammy
 
 ARG APP_NAME
 ARG APP_VERSION
