@@ -7,6 +7,21 @@
 
 ---
 
+## [1.2.4] - 2026-03-26
+
+### Added
+- `cd.sh`：實作 `harbor_push_if_needed()`，完成 Harbor image push 流程（docker login → tag → push → logout）
+- `cd.sh`：image 命名規則 `{registry}/{app-name}/{app-name}:{branch}-{version}-{buildNumber}`，registry 預設 `localhost:9290`
+- `ciPipeline.groovy`：新增必填參數 `harborCredentials`，各專案 Jenkinsfile 指定對應 Harbor Robot Account Credential ID
+- `ciPipeline.groovy`：Harbor Push stage 改以 `withCredentials` 注入 `HARBOR_USER` / `HARBOR_PASS`，避免憑證明文外洩
+
+### Changed
+- `ciPipeline.groovy`：`CD_ENABLED` 由寫死 `false` 改為依 branch 自動判斷（`develop|main|prod` 為 `true`，其餘為 `false`）
+- `cd.sh`：`harbor_push_if_needed()` 暫時開啟 develop branch（供 CI/CD 串接驗證，驗證完成後移除）
+- `cd.sh`：`deploy_if_needed()` 暫時開啟 develop branch 佔位（供 CI/CD 串接驗證，驗證完成後移除）
+
+---
+
 ## [1.2.3] - 2026-03-18
 
 ### Fixed
@@ -81,7 +96,8 @@
 ### Docs
 - 新增 README：使用方式、目錄結構、語言偵測邏輯、版本管理說明
 
-[Unreleased]: https://github.com/Shiba-Jenkins-Groups/jenkins-pipeline-scripts/compare/v1.2.3...HEAD
+[Unreleased]: https://github.com/Shiba-Jenkins-Groups/jenkins-pipeline-scripts/compare/v1.2.4...HEAD
+[1.2.4]: https://github.com/Shiba-Jenkins-Groups/jenkins-pipeline-scripts/compare/v1.2.3...v1.2.4
 [1.2.3]: https://github.com/Shiba-Jenkins-Groups/jenkins-pipeline-scripts/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/Shiba-Jenkins-Groups/jenkins-pipeline-scripts/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/Shiba-Jenkins-Groups/jenkins-pipeline-scripts/compare/v1.2.0...v1.2.1

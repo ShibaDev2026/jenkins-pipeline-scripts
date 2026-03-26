@@ -1,5 +1,7 @@
 def call(Map config = [:]) {
-    def githubCredentials = config.githubCredentials ?: error('githubCredentials is required')
+    def githubCredentials   = config.githubCredentials   ?: error('githubCredentials is required')
+    // harborCredentials：Harbor Robot Account Credential ID（Jenkins Credentials 中定義）
+    def harborCredentials   = config.harborCredentials   ?: error('harborCredentials is required')
 
     pipeline {
         agent {
@@ -12,8 +14,9 @@ def call(Map config = [:]) {
         }
 
         environment {
-            GITHUB_CREDENTIALS = credentials("${githubCredentials}")
-            CD_ENABLED          = 'false'
+            GITHUB_CREDENTIALS  = credentials("${githubCredentials}")
+            // CD_ENABLED：develop / main / prod 自動啟用；其他 branch 跳過 Harbor Push 與 Deploy
+            CD_ENABLED          = (env.GIT_BRANCH ==~ /origin\/(develop|main|prod)/) ? 'true' : 'false'
         }
 
         stages {
@@ -121,7 +124,15 @@ def call(Map config = [:]) {
                     expression { env.CD_ENABLED == 'true' }
                 }
                 steps {
-                    sh 'bash .pipeline/scripts/cd.sh harbor-push'
+                    // Harbor Robot Account 憑證透過 withCredentials 注入環境變數
+                    // HARBOR_USER / HARBOR_PASS 由 cd.sh harbor_push_if_needed() 使用
+                    withCredentials([usernamePassword(
+                        credentialsId: harborCredentials,
+                        usernameVariable: 'HARBOR_USER',
+                        passwordVariable: 'HARBOR_PASS'
+                    )]) {
+                        sh 'bash .pipeline/scripts/cd.sh harbor-push'
+                    }
                 }
             }
 

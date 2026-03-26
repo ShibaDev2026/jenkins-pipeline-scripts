@@ -53,8 +53,24 @@ docker_build_if_needed() {
 # ── Harbor Push ───────────────────────────────────────────────────────────────
 harbor_push_if_needed() {
     case "${BRANCH}" in
-        main|prod)
-            echo "[cd] TODO: Harbor push not yet implemented."
+        # TODO(暫時)：develop 開啟 harbor push 供 CI/CD 串接驗證，驗證完成後移除 develop
+        develop|main|prod)
+            local registry="${HARBOR_REGISTRY:-localhost:9290}"
+            local harbor_image="${registry}/${APP_NAME}/${APP_NAME}:${BRANCH}-${APP_VERSION}-${BUILD_NUMBER}"
+
+            # Harbor credentials 由 ciPipeline.groovy withCredentials 注入
+            echo "${HARBOR_PASS}" | docker login "${registry}" \
+                --username "${HARBOR_USER}" \
+                --password-stdin
+
+            echo "[cd] Tagging: ${IMAGE_TAG} → ${harbor_image}"
+            docker tag "${IMAGE_TAG}" "${harbor_image}"
+
+            echo "[cd] Pushing: ${harbor_image}"
+            docker push "${harbor_image}"
+
+            docker logout "${registry}"
+            echo "[cd] Harbor push completed: ${harbor_image}"
             ;;
         *)
             echo "[cd] Branch '${BRANCH}' — skipping Harbor push."
@@ -65,8 +81,9 @@ harbor_push_if_needed() {
 # ── Deploy ────────────────────────────────────────────────────────────────────
 deploy_if_needed() {
     case "${BRANCH}" in
-        prod)
-            echo "[cd] TODO: Deploy not yet implemented."
+        # TODO(暫時)：develop 開啟 deploy 佔位供 CI/CD 串接驗證，驗證完成後移除 develop
+        develop|prod)
+            echo "[cd] TODO: Deploy to k3s not yet implemented. (branch: ${BRANCH})"
             ;;
         *)
             echo "[cd] Branch '${BRANCH}' — skipping deploy."
