@@ -160,6 +160,9 @@ deploy_if_needed() {
     # k3s pod 位於 jenkins-network，直接使用 Harbor 內部地址（不繞 localhost）
     local k3s_registry="${HARBOR_K3S_REGISTRY:-172.20.0.4:8080}"
 
+    # envsubst 只替換已 export 的環境變數
+    # APP_NAME 由 build.env source 取得，需明確 export 才能被 envsubst 看到
+    export APP_NAME
     # HARBOR_IMAGE 格式：<registry>/<app>/<app>:<branch>-<version>-<build>
     export HARBOR_IMAGE="${k3s_registry}/${APP_NAME}/${APP_NAME}:${BRANCH}-${APP_VERSION}-${BUILD_NUMBER}"
     export NAMESPACE="${namespace}"
