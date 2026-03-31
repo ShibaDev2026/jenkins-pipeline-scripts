@@ -18,7 +18,10 @@ if [[ -f "${BUILD_ENV}" ]]; then
     # shellcheck source=/dev/null
     source "${BUILD_ENV}"
 else
-    echo "[cd] WARNING: .pipeline/build.env not found, falling back to env vars."
+    # build.env 由 Archive stage 寫入，找不到代表上游 stage 失敗或未執行
+    # WARNING 改為 ERROR：避免以空值繼續執行，造成下游難以追查的假性失敗
+    report_error "CD" "001" "build.env not found at ${BUILD_ENV}. Did Archive stage succeed?"
+    exit 1
 fi
 
 BRANCH="${BRANCH:-${GIT_BRANCH:-unknown}}"
@@ -45,6 +48,12 @@ docker_build_if_needed() {
             # 才能被 Dockerfile 的 COPY ${JAR_FILE} app.jar 正確引用
             local jar_source="${ARTIFACTS_ROOT}/${APP_NAME}/release/${ARTIFACT_NAME}"
             local jar_dest="${WORKSPACE}/.pipeline/${ARTIFACT_NAME}"
+
+            # JAR 存在性前置檢查：提前報錯，避免 cp 失敗後只剩 bash 原始訊息
+            if [[ ! -f "${jar_source}" ]]; then
+                report_error "DOCKER" "001" "JAR not found: ${jar_source}. Check Archive stage output."
+                exit 1
+            fi
 
             echo "[cd] Copying JAR to build context: ${jar_source}"
             cp "${jar_source}" "${jar_dest}"
@@ -75,9 +84,11 @@ harbor_push_if_needed() {
             local harbor_image="${registry}/${APP_NAME}/${APP_NAME}:${BRANCH}-${APP_VERSION}-${BUILD_NUMBER}"
 
             # Harbor credentials 由 ciPipeline.groovy withCredentials 注入
+            # docker login 失敗時包裝業務層說明，避免只看到 docker daemon 原始訊息
             echo "${HARBOR_PASS}" | docker login "${registry}" \
                 --username "${HARBOR_USER}" \
-                --password-stdin
+                --password-stdin \
+                || { report_error "HARBOR" "001" "docker login failed for ${registry}. Check harbor credentials in Jenkins (ID: harbor-robot-*)."; exit 1; }
 
             echo "[cd] Tagging: ${IMAGE_TAG} → ${harbor_image}"
             docker tag "${IMAGE_TAG}" "${harbor_image}"

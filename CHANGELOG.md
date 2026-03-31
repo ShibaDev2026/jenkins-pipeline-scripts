@@ -7,6 +7,30 @@
 
 ---
 
+## [1.6.2] - 2026-03-31
+
+### Added
+- `common/error-handler.sh`：新增 `report_error(stage, code, message)` 函數，統一業務層結構化錯誤輸出格式
+  - 輸出含框線區塊，console log 可快速掃描定位問題
+  - 所有 stage script 共用，錯誤碼格式：`{STAGE}-{CODE}`（例：`DOCKER-001`、`HARBOR-001`）
+- `ciPipeline.groovy`：`post.always` 新增 BUILD SUMMARY 框線區塊
+  - 輸出 Job 名稱、Build 號、Result（`currentBuild.currentResult`）、Duration、Build URL
+- `ciPipeline.groovy`：`post.failure` 新增 FAILURE DIAGNOSIS 診斷提示區塊
+- `ciPipeline.groovy`：`post.always` 新增 `archiveArtifacts gitleaks-report.json`（allowEmptyArchive，為 v1.7.0 gitleaks 預留）
+- `java-smoke-test.sh`：失敗時自動輸出容器 log（`docker logs`），Spring Boot 啟動 stacktrace 直接可見
+
+### Changed
+- `common/error-handler.sh`：`trap_error()` 加入 script 名稱（`${BASH_SOURCE[1]}`），從「行號 + exit code」升級為「script 名稱 + 行號 + exit code」
+- `cd.sh`：`.pipeline/build.env` 找不到時從 WARNING 升級為 ERROR（`report_error "CD" "001"`），避免以空值繼續執行產生假性失敗
+- `cd.sh`：Docker Build 前加入 JAR 存在性前置檢查（`report_error "DOCKER" "001"`）
+- `cd.sh`：Harbor `docker login` 失敗時加入業務層說明（`report_error "HARBOR" "001"`），提示檢查 Jenkins Credentials ID
+- `ciPipeline.groovy`：Trivy JUnit XML 收集從 Image Scan stage 的 `post.always` 移至 pipeline 最外層 `post.always`，統一與其他報告同步收集
+
+### Fixed
+- `ciPipeline.groovy`：`post.always` 內 `archiveArtifacts` 置於 `cleanWs()` 之前，確保報告在 workspace 清理前已保存至 Jenkins
+
+---
+
 ## [1.6.1] - 2026-03-30
 
 ### Fixed

@@ -220,13 +220,7 @@ def call(Map config = [:]) {
                         steps {
                             sh 'bash .pipeline/scripts/cd.sh image-scan'
                         }
-                        post {
-                            always {
-                                // Trivy JUnit XML 報告（main/prod 才產生，allowEmptyResults 避免其他 branch fail）
-                                junit allowEmptyResults: true,
-                                      testResults: 'trivy-results.xml'
-                            }
-                        }
+                        // Trivy JUnit XML 已移至 pipeline post.always 統一收集
                     }
 
                     stage('Harbor Push') {
@@ -286,8 +280,24 @@ def call(Map config = [:]) {
 
         post {
             always {
+                // ── Build 摘要（Shiba 與 Claude Code 均可快速掃描）─────────────
+                echo "╔══════════════════════════════════════════════╗"
+                echo "║  BUILD SUMMARY                               ║"
+                echo "╠══════════════════════════════════════════════╣"
+                echo "║  Job     : ${env.JOB_NAME}"
+                echo "║  Build   : #${env.BUILD_NUMBER}"
+                echo "║  Result  : ${currentBuild.currentResult}"
+                echo "║  Duration: ${currentBuild.durationString}"
+                echo "║  URL     : ${env.BUILD_URL}"
+                echo "╚══════════════════════════════════════════════╝"
+
+                // ── 報告保存（順序：archive → publishHTML → junit → cleanWs）──
+                // archiveArtifacts 必須在 cleanWs 之前，否則檔案已被清除
+                // allowEmptyArchive: true — 報告不存在時（無 secret scan）不 fail
+                archiveArtifacts artifacts: 'gitleaks-report.json',
+                                 allowEmptyArchive: true
+
                 // JaCoCo Coverage HTML（main / prod branch 才產生，allowMissing 避免其他 branch fail）
-                // publishHTML 先於 cleanWs 執行，確保報告複製至 Jenkins 後再清理 workspace
                 publishHTML(target: [
                     allowMissing          : true,
                     alwaysLinkToLastBuild : false,
@@ -305,13 +315,29 @@ def call(Map config = [:]) {
                     reportFiles           : 'dependency-check-report.html',
                     reportName            : 'OWASP Dependency-Check Report'
                 ])
+                // Trivy JUnit XML（main / prod branch 才產生，allowEmptyResults 避免其他 branch fail）
+                junit allowEmptyResults: true,
+                      testResults: 'trivy-results.xml'
+
                 cleanWs()
+            }
+            failure {
+                // ── 失敗診斷提示（快速指引查錯方向）────────────────────────────
+                echo "╔══════════════════════════════════════════════╗"
+                echo "║  FAILURE DIAGNOSIS                           ║"
+                echo "╠══════════════════════════════════════════════╣"
+                echo "║  1. Stage View: 確認哪個 Stage 標紅          ║"
+                echo "║  2. Console Log: 搜尋 [ERROR] 或 PIPELINE    ║"
+                echo "║     ERROR 框線區塊                           ║"
+                echo "║  3. 報告: Build Artifacts 下載各項報告       ║"
+                echo "║  Console: ${env.BUILD_URL}console            ║"
+                echo "╚══════════════════════════════════════════════╝"
+            }
+            unstable {
+                echo "[BUILD UNSTABLE] 部分 Stage 回報警告，請檢查 Stage View 與 Test Results。"
             }
             success {
                 echo "Pipeline SUCCESS — ${env.JOB_NAME} #${env.BUILD_NUMBER}"
-            }
-            failure {
-                echo "Pipeline FAILED — ${env.JOB_NAME} #${env.BUILD_NUMBER}"
             }
         }
     }

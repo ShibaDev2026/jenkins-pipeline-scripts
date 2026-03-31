@@ -34,7 +34,17 @@ echo "[java-smoke] Starting container: ${CONTAINER_NAME}"
 docker run -d --name "${CONTAINER_NAME}" ${EXTRA_ENV_ARGS} "${HARBOR_IMAGE}"
 
 # ── 容器退出時自動清理（trap EXIT）───────────────────────────────────────────
+# 失敗時先輸出容器 log，再清理容器
+# Spring Boot 啟動失敗的 stacktrace 在容器內，不輸出的話無從追查
+SMOKE_FAILED=0
 cleanup() {
+    if [[ "${SMOKE_FAILED}" == "1" ]]; then
+        echo "" >&2
+        echo "=== CONTAINER LOG (${CONTAINER_NAME}) ===" >&2
+        docker logs "${CONTAINER_NAME}" 2>&1 || true
+        echo "=== END OF CONTAINER LOG ===" >&2
+        echo "" >&2
+    fi
     echo "[java-smoke] Cleaning up container: ${CONTAINER_NAME}"
     docker rm -f "${CONTAINER_NAME}" 2>/dev/null || true
 }
@@ -49,7 +59,8 @@ until docker exec "${CONTAINER_NAME}" \
     elapsed=$((elapsed + 5))
     echo "[java-smoke] Waiting... ${elapsed}s"
     if [[ ${elapsed} -ge ${MAX_WAIT} ]]; then
-        echo "[ERROR] Smoke test timeout after ${MAX_WAIT}s" >&2
+        SMOKE_FAILED=1
+        report_error "SMOKE" "001" "Startup timeout after ${MAX_WAIT}s. Container log printed above."
         exit 1
     fi
 done
@@ -61,7 +72,8 @@ STATUS=$(docker exec "${CONTAINER_NAME}" \
 
 echo "[java-smoke] Health status: ${STATUS}"
 [[ "${STATUS}" == "UP" ]] || {
-    echo "[ERROR] Expected UP, got ${STATUS}" >&2
+    SMOKE_FAILED=1
+    report_error "SMOKE" "002" "Health check returned '${STATUS}' (expected UP). Container log printed above."
     exit 1
 }
 
