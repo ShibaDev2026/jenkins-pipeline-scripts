@@ -7,6 +7,25 @@
 
 ---
 
+## [1.8.0] - 2026-04-01
+
+### Added
+- `cd.sh`：實作 `deploy_if_needed()`，透過 kubectl 部署至 k3s cluster
+  - develop branch → namespace `dev`（NodePort 30090）
+  - prod branch → namespace `prod`（NodePort 30091）
+  - 使用 `envsubst` 替換 manifest 佔位符（`${APP_NAME}` / `${HARBOR_IMAGE}` / `${NAMESPACE}` / `${NODE_PORT}`）
+  - 等待 `kubectl rollout status`（120 秒逾時），失敗時自動輸出 pod status 與 container log
+  - `HARBOR_K3S_REGISTRY` 環境變數可覆蓋 Harbor 內部地址（預設 `172.20.0.4:8080`）
+- `ciPipeline.groovy`：Deploy stage 加入 kubeconfig 注入與 prod 人工審核
+  - `withCredentials([file(credentialsId: 'k3s-kubeconfig')])` 注入 KUBECONFIG
+  - prod branch：`input` gate，需人工確認才執行部署
+
+### Changed
+- `cd.sh`：移除 `harbor_push_if_needed()` 中 `develop` 的 `TODO(暫時)` 註解（develop harbor push 為正式行為）
+- `cd.sh`：移除 `deploy_if_needed()` 中 `develop` 的 `TODO(暫時)` 佔位，改為正式實作
+
+---
+
 ## [1.6.2] - 2026-03-31
 
 ### Added
@@ -222,7 +241,10 @@
 ### Docs
 - 新增 README：使用方式、目錄結構、語言偵測邏輯、版本管理說明
 
-[Unreleased]: https://github.com/Shiba-Jenkins-Groups/jenkins-pipeline-scripts/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/Shiba-Jenkins-Groups/jenkins-pipeline-scripts/compare/v1.8.0...HEAD
+[1.8.0]: https://github.com/Shiba-Jenkins-Groups/jenkins-pipeline-scripts/compare/v1.6.2...v1.8.0
+[1.6.2]: https://github.com/Shiba-Jenkins-Groups/jenkins-pipeline-scripts/compare/v1.6.1...v1.6.2
+[1.6.1]: https://github.com/Shiba-Jenkins-Groups/jenkins-pipeline-scripts/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/Shiba-Jenkins-Groups/jenkins-pipeline-scripts/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/Shiba-Jenkins-Groups/jenkins-pipeline-scripts/compare/v1.4.1...v1.5.0
 [1.4.1]: https://github.com/Shiba-Jenkins-Groups/jenkins-pipeline-scripts/compare/v1.4.0...v1.4.1

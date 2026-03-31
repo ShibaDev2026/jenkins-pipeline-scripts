@@ -78,7 +78,6 @@ docker_build_if_needed() {
 # ── Harbor Push ───────────────────────────────────────────────────────────────
 harbor_push_if_needed() {
     case "${BRANCH}" in
-        # TODO(暫時)：develop 開啟 harbor push 供 CI/CD 串接驗證，驗證完成後移除 develop
         develop|main|prod)
             local registry="${HARBOR_REGISTRY:-localhost:9290}"
             local harbor_image="${registry}/${APP_NAME}/${APP_NAME}:${BRANCH}-${APP_VERSION}-${BUILD_NUMBER}"
@@ -140,17 +139,60 @@ image_scan_if_needed() {
     esac
 }
 
-# ── Deploy ────────────────────────────────────────────────────────────────────
+# ── Deploy（kubectl apply to k3s）─────────────────────────────────────────────
 deploy_if_needed() {
+    local namespace
     case "${BRANCH}" in
-        # TODO(暫時)：develop 開啟 deploy 佔位供 CI/CD 串接驗證，驗證完成後移除 develop
-        develop|prod)
-            echo "[cd] TODO: Deploy to k3s not yet implemented. (branch: ${BRANCH})"
-            ;;
+        develop) namespace="dev"  ;;
+        prod)    namespace="prod" ;;
         *)
             echo "[cd] Branch '${BRANCH}' — skipping deploy."
+            return 0
             ;;
     esac
+
+    # k8s/ 目錄由各專案提供，包含 deployment.yaml / service.yaml（含 envsubst 佔位符）
+    if [[ ! -d "${WORKSPACE}/k8s" ]]; then
+        report_error "DEPLOY" "001" "k8s/ directory not found in workspace. Please add k8s/ manifests to the project."
+        exit 1
+    fi
+
+    # k3s pod 位於 jenkins-network，直接使用 Harbor 內部地址（不繞 localhost）
+    local k3s_registry="${HARBOR_K3S_REGISTRY:-172.20.0.4:8080}"
+
+    # HARBOR_IMAGE 格式：<registry>/<app>/<app>:<branch>-<version>-<build>
+    export HARBOR_IMAGE="${k3s_registry}/${APP_NAME}/${APP_NAME}:${BRANCH}-${APP_VERSION}-${BUILD_NUMBER}"
+    export NAMESPACE="${namespace}"
+    export NODE_PORT
+    [[ "${BRANCH}" == "prod" ]] && NODE_PORT="30091" || NODE_PORT="30090"
+
+    echo "[cd] Deploying to namespace: ${namespace}"
+    echo "[cd] Image: ${HARBOR_IMAGE}"
+
+    # envsubst 替換 manifest 佔位符（${APP_NAME} / ${HARBOR_IMAGE} / ${NAMESPACE} / ${NODE_PORT}）
+    # 產生渲染後的臨時 manifest，避免污染原始 k8s/ 目錄
+    local rendered="${WORKSPACE}/.pipeline/k8s-rendered"
+    mkdir -p "${rendered}"
+    for f in "${WORKSPACE}/k8s/"*.yaml; do
+        envsubst < "${f}" > "${rendered}/$(basename "${f}")"
+    done
+
+    # KUBECONFIG 由 ciPipeline.groovy withCredentials(file) 注入至環境變數
+    kubectl apply -f "${rendered}/" -n "${namespace}" \
+        || { report_error "DEPLOY" "002" "kubectl apply failed for namespace ${namespace}."; exit 1; }
+
+    # 等待 Deployment rollout 完成（120 秒逾時）
+    kubectl rollout status deployment/"${APP_NAME}" -n "${namespace}" --timeout=120s \
+        || {
+            report_error "DEPLOY" "003" "Rollout timeout for ${APP_NAME} in ${namespace}."
+            echo "[cd] === Pod Status ===" >&2
+            kubectl get pods -n "${namespace}" -l "app=${APP_NAME}" >&2 || true
+            echo "[cd] === Recent Pod Logs ===" >&2
+            kubectl logs -n "${namespace}" -l "app=${APP_NAME}" --tail=50 >&2 || true
+            exit 1
+        }
+
+    echo "[cd] Deploy complete: http://localhost:${NODE_PORT}"
 }
 
 # ── Stage 分派 ────────────────────────────────────────────────────────────────

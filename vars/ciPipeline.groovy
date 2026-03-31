@@ -269,7 +269,19 @@ def call(Map config = [:]) {
                             }
                         }
                         steps {
-                            sh 'bash .pipeline/scripts/cd.sh deploy'
+                            script {
+                                // prod branch 需人工確認後才執行部署（防止誤觸）
+                                def branch = env.GIT_BRANCH?.replaceAll(/^origin\//, '') ?: ''
+                                if (branch == 'prod') {
+                                    input message: "Deploy ${env.JOB_NAME} #${env.BUILD_NUMBER} to PROD namespace?",
+                                          ok: 'Deploy to PROD'
+                                }
+                            }
+                            // KUBECONFIG 由 Jenkins Secret File credential（ID: k3s-kubeconfig）注入
+                            // Jenkins agent 使用 k3s-kubeconfig-agent（server: jenkins-network 內部 IP:6443）
+                            withCredentials([file(credentialsId: 'k3s-kubeconfig', variable: 'KUBECONFIG')]) {
+                                sh 'bash .pipeline/scripts/cd.sh deploy'
+                            }
                         }
                     }
 
