@@ -7,6 +7,16 @@
 
 ---
 
+## [1.8.1] - 2026-04-01
+
+### Changed
+- `cd.sh`：`HARBOR_K3S_REGISTRY` 預設值從 `172.20.0.4:8080` 改為 `host.docker.internal:9290`
+  - 統一 Harbor push（`localhost:9290`）與 k3s pull 的底層服務端點，消除地址分裂
+  - `host.docker.internal` 在 Mac Docker Desktop 環境中對 Agent container 與 k3d container 均可達
+  - 雲端環境請透過 `HARBOR_K3S_REGISTRY` env var 覆蓋為真實 Harbor address
+
+---
+
 ## [1.8.0] - 2026-04-01
 
 ### Added

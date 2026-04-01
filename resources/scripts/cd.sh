@@ -158,7 +158,9 @@ deploy_if_needed() {
     fi
 
     # k3s pod 位於 jenkins-network，直接使用 Harbor 內部地址（不繞 localhost）
-    local k3s_registry="${HARBOR_K3S_REGISTRY:-172.20.0.4:8080}"
+    # k3s pull image 地址：預設 host.docker.internal:9290（Docker Desktop 本地環境）
+    # 雲端環境請透過 HARBOR_K3S_REGISTRY env var 覆蓋為真實 Harbor address
+    local k3s_registry="${HARBOR_K3S_REGISTRY:-host.docker.internal:9290}"
 
     # envsubst 只替換已 export 的環境變數
     # APP_NAME 由 build.env source 取得，需明確 export 才能被 envsubst 看到
