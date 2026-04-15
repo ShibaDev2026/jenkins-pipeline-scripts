@@ -331,6 +331,9 @@ def call(Map config = [:]) {
                 junit allowEmptyResults: true,
                       testResults: 'trivy-results.xml'
 
+                // ── Docker dangling image 清理（無 tag 殘留層，每次 build 後自動清除）──
+                sh 'docker image prune -f'
+
                 cleanWs()
             }
             failure {
