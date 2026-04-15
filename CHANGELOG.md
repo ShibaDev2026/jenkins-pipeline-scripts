@@ -7,6 +7,15 @@
 
 ---
 
+## [1.8.2] - 2026-04-15
+
+### Changed
+- `ciPipeline.groovy`：`post.always` 加入 `docker image prune -f`
+  - 每次 pipeline 結束（無論成功失敗）自動清除 dangling image（`<none>:<none>`）
+  - 避免長期累積無 tag 殘留層佔用磁碟
+
+---
+
 ## [1.8.1] - 2026-04-01
 
 ### Changed
